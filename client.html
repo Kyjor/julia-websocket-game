@@ -3,30 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Game</title>
+    <title>Checkers Game</title>
+    <style>
+        #board {
+    display: grid;
+    grid-template-columns: repeat(8, 50px);
+    grid-template-rows: repeat(8, 50px);
+    gap: 1px;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.piece {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #000;
+}
+
+.red {
+    background-color: red;
+}
+
+.black {
+    background-color: black;
+}
+
+.red-king {
+    background-color: darkred;
+}
+
+.black-king {
+    background-color: darkgray;
+}
+    </style>
 </head>
 <body>
-    <h1>WebSocket Game</h1>
-    <input type="text" id="message" placeholder="Enter your message">
-    <button onclick="sendMessage()">Send</button>
-    <ul id="messages"></ul>
-
+    <h1>Checkers Game</h1>
+    <div id="board"></div>
     <script>
-        const ws = new WebSocket("ws://localhost:8080");
+       const ws = new WebSocket("ws://localhost:8080");
+let selectedCell = null;
 
-        ws.onmessage = function(event) {
-            const messages = document.getElementById("messages");
-            const message = document.createElement("li");
-            message.textContent = event.data;
-            messages.appendChild(message);
-        };
+// Render the board
+function renderBoard(board) {
+    const boardElement = document.getElementById("board");
+    boardElement.innerHTML = "";
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.row = row;
+            cell.dataset.col = col;
+            cell.addEventListener("click", () => handleCellClick(row, col));
 
-        function sendMessage() {
-            const input = document.getElementById("message");
-            const message = input.value;
-            ws.send(message);
-            input.value = "";
+            // Add alternating background colors for the board
+            if ((row + col) % 2 === 0) {
+                cell.style.backgroundColor = "#f0d9b5"; // Light color
+            } else {
+                cell.style.backgroundColor = "#b58863"; // Dark color
+            }
+
+            // Add pieces based on the board state
+            const piece = board[row * 8 + col];
+            if (piece === 1) {
+                const pieceElement = document.createElement("div");
+                pieceElement.className = "piece red";
+                cell.appendChild(pieceElement);
+            } else if (piece === 2) {
+                const pieceElement = document.createElement("div");
+                pieceElement.className = "piece black";
+                cell.appendChild(pieceElement);
+            } else if (piece === 3) {
+                const pieceElement = document.createElement("div");
+                pieceElement.className = "piece red-king";
+                cell.appendChild(pieceElement);
+            } else if (piece === 4) {
+                const pieceElement = document.createElement("div");
+                pieceElement.className = "piece black-king";
+                cell.appendChild(pieceElement);
+            }
+
+            boardElement.appendChild(cell);
         }
+    }
+}
+
+// Handle cell clicks
+function handleCellClick(row, col) {
+    if (selectedCell) {
+        const [fromRow, fromCol] = selectedCell;
+        ws.send(`move ${fromRow} ${fromCol} ${row} ${col}`);
+        selectedCell = null;
+    } else {
+        selectedCell = [row, col];
+    }
+}
+
+// Handle WebSocket messages
+ws.onmessage = function(event) {
+    const [type, ...data] = event.data.split(" ");
+    if (type === "board") {
+        const board = data.map(Number);
+        console.log("Received board state:", board); // Debugging
+        renderBoard(board);
+    } else if (type === "error") {
+        alert(data.join(" "));
+    }
+};
     </script>
 </body>
 </html>
